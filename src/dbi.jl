@@ -3,15 +3,15 @@ A handle for an individual database in the DB environment.
 """
 type DBI
     handle::Cuint
-    name::String
-    DBI(dbi::Cuint, name::String) = new(dbi, name)
+    name::AbstractString
+    DBI(dbi::Cuint, name::AbstractString) = new(dbi, name)
 end
 
 "Check if database is open"
 isopen(dbi::DBI) = dbi.handle != zero(Cuint)
 
 "Open a database in the environment"
-function open(txn::Transaction, dbname::String = ""; flags::Cuint=zero(Cuint))
+function open(txn::Transaction, dbname::AbstractString = ""; flags::Cuint=zero(Cuint))
     cdbname = length(dbname) > 0 ? bytestring(dbname) : convert(Cstring, Ptr{UInt8}(C_NULL))
     handle = Cuint[0]
     ret = ccall((:mdb_dbi_open, liblmdb), Cint,
@@ -22,7 +22,7 @@ function open(txn::Transaction, dbname::String = ""; flags::Cuint=zero(Cuint))
 end
 
 "Wrapper of DBI `open` for `do` construct"
-function open(f::Function, txn::Transaction, dbname::String = ""; flags::Cuint=zero(Cuint))
+function open(f::Function, txn::Transaction, dbname::AbstractString = ""; flags::Cuint=zero(Cuint))
     dbi = open(txn, dbname, flags=flags)
     tenv = env(txn)
     try
@@ -105,12 +105,5 @@ function get{T}(txn::Transaction, dbi::DBI, key, ::Type{T})
     (ret != 0) && throw(LMDBError(ret))
 
     # Convert to proper type
-    mdb_val = mdb_val_ref[]
-    if T <: AbstractString
-        return bytestring(convert(Ptr{UInt8}, mdb_val.data), mdb_val.size)
-    else
-        nvals = floor(Int, mdb_val.size/sizeof(T))
-        value = pointer_to_array(convert(Ptr{T}, mdb_val.data), nvals)
-        return length(value) == 1 ? value[1] : value
-    end
+	return convert(T, mdb_key_ref)
 end

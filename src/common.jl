@@ -1,5 +1,8 @@
 typealias Cmode_t Cushort
 
+import Base.convert
+import Base.RefValue
+
 "Generic structure used for passing keys and data in and out of the database."
 type MDBValue
     size::Csize_t   # size of the data item
@@ -91,6 +94,24 @@ function version()
     ver_str = ccall( (:mdb_version, liblmdb), Cstring, (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}), major, minor, patch)
     return VersionNumber(major[1],minor[1],patch[1]), bytestring(ver_str)
 end
+
+
+"""Return the LMDB library version and version information
+
+Function returns tuple `(VersionNumber,String)` that contains a library version and a library version string.
+"""
+function convert(T::RefValue{MDBValue}, mdb_val_ref)
+    # Convert to proper type
+    mdb_val = mdb_val_ref[]
+    if T <: AbstractString
+        return bytestring(convert(Ptr{UInt8}, mdb_val.data), mdb_val.size)
+    else
+        nvals = floor(Int, mdb_val.size/sizeof(T))
+        value = pointer_to_array(convert(Ptr{T}, mdb_val.data), nvals)
+        return length(value) == 1 ? value[1] : value
+    end
+end
+
 
 """Return a string describing a given error code
 

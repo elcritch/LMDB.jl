@@ -77,14 +77,45 @@ function get{T}(cur::Cursor, key, ::Type{T}, op::CursorOps=FIRST)
     (ret != 0) && throw(LMDBError(ret))
 
     # Convert to proper type
-    mdb_val = mdb_val_ref[]
-    if T <: AbstractString
-        return bytestring(convert(Ptr{UInt8}, mdb_val.data), mdb_val.size)
-    else
-        nvals = floor(Int, mdb_val.size/sizeof(T))
-        value = pointer_to_array(convert(Ptr{T}, mdb_val.data), nvals)
-        return length(value) == 1 ? value[1] : value
-    end
+	return convert(T, mdb_val_ref)
+end
+
+"""Peek at cursor.
+
+This function retrieves key/data pairs from the database. Returns key. 
+"""
+function getkey{T}(cur::Cursor, key, ::Type{T}, op::CursorOps=GET_CURRENT)
+    # Setup parameters
+    mdb_key_ref = Ref(MDBValue(key))
+    mdb_val_ref = Ref(MDBValue())
+
+    # Get value
+    ret = ccall( (:mdb_cursor_get, liblmdb), Cint,
+                  (Ptr{Void}, Ptr{MDBValue}, Ptr{MDBValue}, Cint),
+                   cur.handle, mdb_key_ref, mdb_val_ref, Cint(op))
+    (ret != 0) && throw(LMDBError(ret))
+
+    # Convert to proper type
+	return convert(T, mdb_key_ref)
+end
+
+"""Retrieve item.
+
+This function retrieves key/data pairs from the database. Returns item pair. 
+"""
+function getitem{K,V}(cur::Cursor, key, ::Type{Pair{K,V}}, op::CursorOps=GET_CURRENT)
+    # Setup parameters
+    mdb_key_ref = Ref(MDBValue(key))
+    mdb_val_ref = Ref(MDBValue())
+
+    # Get value
+    ret = ccall( (:mdb_cursor_get, liblmdb), Cint,
+                  (Ptr{Void}, Ptr{MDBValue}, Ptr{MDBValue}, Cint),
+                   cur.handle, mdb_key_ref, mdb_val_ref, Cint(op))
+    (ret != 0) && throw(LMDBError(ret))
+
+    # Convert to proper type
+	return Pair(convert(K, mdb_key_ref), convert(V, mdb_key_ref))
 end
 
 """Store by cursor.

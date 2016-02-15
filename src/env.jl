@@ -3,7 +3,7 @@ A DB environment supports multiple databases, all residing in the same shared-me
 """
 type Environment
     handle::Ptr{Void}
-    path::String
+    path::AbstractString
     Environment() = new(C_NULL, "")
     Environment(h::Ptr{Void}) = new(h, "")
 end
@@ -42,7 +42,7 @@ end
 
 *Note:* A database directory must exist and be writable.
 """
-function open(env::Environment, path::String; flags::Cuint=zero(Cuint), mode::Cmode_t = 0o755)
+function open(env::Environment, path::AbstractString; flags::Cuint=zero(Cuint), mode::Cmode_t = 0o755)
     env.path = path
     cpath = bytestring(path)
     ret = ccall((:mdb_env_open, liblmdb), Cint,
